@@ -46,7 +46,7 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	var report Report
-	b, err := os.ReadFile(filepath.Join(out, "report.json"))
+	b, err := os.ReadFile(filepath.Join(out, "summary.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestEndToEnd(t *testing.T) {
 	if err != nil || string(source) != "export const a = 1;" {
 		t.Fatalf("bad source: %q %v", source, err)
 	}
-	txt, err := os.ReadFile(filepath.Join(out, "report.txt"))
+	txt, err := os.ReadFile(filepath.Join(out, "summary.txt"))
 	if err != nil || !bytes.Contains(txt, []byte(fullyReconstructed)) {
 		t.Fatalf("text report missing: %s %v", txt, err)
 	}
@@ -129,7 +129,7 @@ func TestPartialMapAndTraversal(t *testing.T) {
 	if err := run(context.Background(), config{List: list, Output: out, Concurrency: 1, Timeout: time.Second}, io.Discard); err == nil {
 		t.Fatal("expected a reported partial failure")
 	}
-	data, err := os.ReadFile(filepath.Join(out, "report.json"))
+	data, err := os.ReadFile(filepath.Join(out, "summary.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -147,13 +147,23 @@ func TestPartialMapAndTraversal(t *testing.T) {
 }
 
 func TestListFailuresAndSameBasename(t *testing.T) {
-	var active, peak atomic.Int32
+	var active, peak, arrivals atomic.Int32
+	firstPair := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		n := active.Add(1)
 		defer active.Add(-1)
 		for p := peak.Load(); n > p && !peak.CompareAndSwap(p, n); p = peak.Load() {
 		}
-		time.Sleep(15 * time.Millisecond)
+		if arrived := arrivals.Add(1); arrived <= 2 {
+			if arrived == 2 {
+				close(firstPair)
+			}
+			select {
+			case <-firstPair:
+			case <-r.Context().Done():
+				return
+			}
+		}
 		if r.URL.Path == "/missing.js" {
 			http.NotFound(w, r)
 			return
@@ -170,7 +180,7 @@ func TestListFailuresAndSameBasename(t *testing.T) {
 	if err := run(context.Background(), config{List: list, Output: out, Concurrency: 2, Timeout: time.Second}, io.Discard); err == nil {
 		t.Fatal("HTTP failure should return a nonzero result")
 	}
-	b, err := os.ReadFile(filepath.Join(out, "report.json"))
+	b, err := os.ReadFile(filepath.Join(out, "summary.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,5 +346,23 @@ func TestMultilineSourceMapAnnotation(t *testing.T) {
 	ref, err := scanJS(strings.NewReader("console.log(1);\n/*# sourceMappingURL=app.js.map\n*/\n"), func(Finding) {})
 	if err != nil || ref != "app.js.map" {
 		t.Fatalf("lost trailing block annotation: %q %v", ref, err)
+	}
+}
+
+func TestRequestHeadersAndJitter(t *testing.T) {
+	var headers http.Header
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { headers = r.Header.Clone(); w.WriteHeader(http.StatusOK) }))
+	defer srv.Close()
+	started := time.Now()
+	resp, err := request(context.Background(), srv.Client(), http.MethodGet, srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if time.Since(started) < 150*time.Millisecond {
+		t.Fatal("request was not delayed")
+	}
+	if !strings.Contains(headers.Get("User-Agent"), "Mozilla/5.0") || headers.Get("Sec-Fetch-Dest") != "script" || headers.Get("Sec-Fetch-Mode") != "no-cors" || headers.Get("Accept-Language") == "" {
+		t.Fatalf("missing browser headers: %v", headers)
 	}
 }

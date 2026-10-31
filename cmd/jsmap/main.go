@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"os"
@@ -35,6 +36,7 @@ const (
 
 type config struct {
 	URL, List, Output string
+	HAR, Directory    string
 	Concurrency       int
 	Timeout           time.Duration
 }
@@ -58,11 +60,12 @@ type MapResult struct {
 }
 
 type FileResult struct {
-	URL       string     `json:"url"`
-	File      string     `json:"file"`
-	Findings  []Finding  `json:"findings"`
-	SourceMap *MapResult `json:"source_map,omitempty"`
-	Error     string     `json:"error,omitempty"`
+	URL          string     `json:"url"`
+	File         string     `json:"file"`
+	Findings     []Finding  `json:"findings"`
+	SourceMap    *MapResult `json:"source_map,omitempty"`
+	Error        string     `json:"error,omitempty"`
+	AnalysisNote string     `json:"analysis_note,omitempty"`
 }
 
 type Report struct {
@@ -91,6 +94,8 @@ func main() {
 	var c config
 	flag.StringVar(&c.URL, "u", "", "Website URL to discover JavaScript assets")
 	flag.StringVar(&c.List, "l", "", "Text file containing direct JavaScript URLs (one per line)")
+	flag.StringVar(&c.HAR, "har", "", "Offline HTTP Archive file")
+	flag.StringVar(&c.Directory, "d", "", "Offline directory of JavaScript files")
 	flag.StringVar(&c.Output, "o", "jsmap-output", "New or empty output directory")
 	flag.IntVar(&c.Concurrency, "c", 10, "Number of concurrent workers")
 	flag.DurationVar(&c.Timeout, "timeout", 30*time.Second, "Timeout per HTTP request, including body download")
@@ -108,8 +113,14 @@ func main() {
 }
 
 func run(ctx context.Context, c config, output io.Writer) error {
-	if (c.URL == "") == (c.List == "") {
-		return errors.New("provide exactly one of -u or -l")
+	inputs := 0
+	for _, input := range []string{c.URL, c.List, c.HAR, c.Directory} {
+		if input != "" {
+			inputs++
+		}
+	}
+	if inputs != 1 {
+		return errors.New("provide exactly one of -u, -l, -har or -d")
 	}
 	if c.Concurrency < 1 || c.Timeout <= 0 || c.Output == "" {
 		return errors.New("-c, -timeout and -o must be positive/nonempty")
@@ -127,8 +138,19 @@ func run(ctx context.Context, c config, output io.Writer) error {
 	}
 	report := Report{StartedAt: time.Now().UTC(), Input: c.URL, Files: []FileResult{}}
 	var urls []string
+	var offline map[string]offlineAsset
 	var err error
-	if c.URL != "" {
+	if c.HAR != "" || c.Directory != "" {
+		report.Input = c.HAR
+		if c.Directory != "" {
+			report.Input = c.Directory
+		}
+		offline, err = offlineAssets(c)
+		for u := range offline {
+			urls = append(urls, u)
+		}
+		sort.Strings(urls)
+	} else if c.URL != "" {
 		log("36", "[crawl] %q", c.URL)
 		urls, err = discover(ctx, client, c.URL)
 	} else {
@@ -155,10 +177,19 @@ func run(ctx context.Context, c config, output io.Writer) error {
 		go func() {
 			defer workers.Done()
 			for u := range jobs {
-				log("36", "[download] %q", u)
-				r := processJS(ctx, client, root, u, func(f Finding) {
+				log("36", "[asset] %q", u)
+				emit := func(f Finding) {
 					log("33", "[finding] %s:%d [%s] %q", f.File, f.Line, f.Category, f.Snippet)
-				})
+				}
+				var r FileResult
+				if a, ok := offline[u]; ok {
+					r = processOffline(ctx, root, u, a, emit)
+				} else {
+					r = processJS(ctx, client, root, u, emit)
+				}
+				if r.AnalysisNote != "" {
+					log("36", "[analysis] %q: %q", u, r.AnalysisNote)
+				}
 				if r.Error != "" {
 					log("31", "[error] %q: %q", u, r.Error)
 				}
@@ -193,7 +224,7 @@ func run(ctx context.Context, c config, output io.Writer) error {
 	}
 	log("32", "[done] %d assets, %d findings, %d failed/partial; reports: %q", len(report.Files), findings, failures, c.Output)
 	if failures > 0 {
-		return fmt.Errorf("%d asset(s) failed or have incomplete source maps; see report.json", failures)
+		return fmt.Errorf("%d asset(s) failed or have incomplete source maps; see summary.json", failures)
 	}
 	return ctx.Err()
 }
@@ -221,7 +252,14 @@ func request(ctx context.Context, client *http.Client, method, raw string) (*htt
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "jsmap-crawler/1.0")
+	time.Sleep(time.Duration(150+rand.IntN(151)) * time.Millisecond)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36")
+	req.Header.Set("Sec-Fetch-Dest", "script")
+	req.Header.Set("Sec-Fetch-Mode", "no-cors")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -386,12 +424,21 @@ func processJS(ctx context.Context, client *http.Client, root *os.Root, raw stri
 		return r
 	}
 	defer resp.Body.Close()
+	r, ref := processStream(root, raw, resp.Body, emit)
+	if r.Error == "" && ref != "" {
+		r.SourceMap = unpackMap(ctx, client, root, resp.Request.URL, ref, assetName(raw))
+	}
+	return r
+}
+
+func processStream(root *os.Root, raw string, reader io.Reader, emit func(Finding)) (FileResult, string) {
+	r := FileResult{URL: raw, File: "raw/" + assetName(raw), Findings: []Finding{}}
 	f, err := root.OpenFile(r.File, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		r.Error = err.Error()
-		return r
+		return r, ""
 	}
-	lr := &io.LimitedReader{R: resp.Body, N: maxJS + 1}
+	lr := &io.LimitedReader{R: reader, N: maxJS + 1}
 	ref, scanErr := scanJS(io.TeeReader(lr, f), func(hit Finding) { hit.File = r.File; r.Findings = append(r.Findings, hit); emit(hit) })
 	closeErr := f.Close()
 	if lr.N == 0 {
@@ -402,12 +449,10 @@ func processJS(ctx context.Context, client *http.Client, root *os.Root, raw stri
 		if e := root.Remove(r.File); e != nil {
 			r.Error += "; remove incomplete file: " + e.Error()
 		}
-		return r
+		return r, ""
 	}
-	if ref != "" {
-		r.SourceMap = unpackMap(ctx, client, root, resp.Request.URL, ref, assetName(raw))
-	}
-	return r
+	analyzeAST(root, &r, emit)
+	return r, ref
 }
 
 // Split long minified lines without ever buffering an entire bundle in Scanner.
@@ -424,7 +469,7 @@ func scanParts(data []byte, atEOF bool) (int, []byte, error) {
 
 func scanJS(reader io.Reader, emit func(Finding)) (string, error) {
 	scanner := bufio.NewScanner(reader)
-	scanner.Buffer(make([]byte, scanChunk*2), scanChunk*2)
+	scanner.Buffer(make([]byte, 1024*1024), 25*1024*1024)
 	scanner.Split(scanParts)
 	line := 1
 	seen := make([]bool, len(patterns))
@@ -510,12 +555,18 @@ func unpackMap(ctx context.Context, client *http.Client, root *os.Root, base *ur
 		return fail(err)
 	}
 	defer resp.Body.Close()
+	return extractMap(ctx, root, resp.Body, m.URL, name)
+}
+
+func extractMap(ctx context.Context, root *os.Root, reader io.Reader, mapURL, name string) *MapResult {
+	m := &MapResult{URL: mapURL, Status: "SourceMap unavailable"}
+	fail := func(err error) *MapResult { m.Errors = append(m.Errors, err.Error()); return m }
 	mapFile := "raw/" + name + ".map"
 	f, err := root.OpenFile(mapFile, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return fail(err)
 	}
-	n, copyErr := io.Copy(f, io.LimitReader(resp.Body, maxMap+1))
+	n, copyErr := io.Copy(f, io.LimitReader(reader, maxMap+1))
 	closeErr := f.Close()
 	if n > maxMap {
 		copyErr = fmt.Errorf("source map exceeds %d MiB", maxMap>>20)
@@ -572,7 +623,7 @@ func unpackMap(ctx context.Context, client *http.Client, root *os.Root, base *ur
 		}
 		p, e := sourcePath(sm.SourceRoot, source)
 		if e == nil {
-			e = dest.MkdirAll(filepath.Dir(p), 0700)
+			e = mkdirAllRoot(dest, filepath.Dir(p), 0700)
 		}
 		if e == nil {
 			e = writeFile(dest, p, strings.NewReader(*sm.SourcesContent[i]))
@@ -616,6 +667,36 @@ func sourcePath(sourceRoot, source string) (string, error) {
 	return filepath.FromSlash(p), nil
 }
 
+func mkdirAllRoot(root *os.Root, name string, mode os.FileMode) error {
+	current := ""
+	for _, part := range strings.Split(filepath.Clean(name), string(filepath.Separator)) {
+		if part == "" || part == "." {
+			continue
+		}
+		if current == "" {
+			current = part
+		} else {
+			current = filepath.Join(current, part)
+		}
+		if err := root.Mkdir(current, mode); err != nil && !errors.Is(err, os.ErrExist) {
+			return err
+		}
+		f, err := root.Open(current)
+		if err != nil {
+			return err
+		}
+		info, statErr := f.Stat()
+		f.Close()
+		if statErr != nil {
+			return statErr
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("%q is not a directory", current)
+		}
+	}
+	return nil
+}
+
 func writeFile(root *os.Root, name string, data io.Reader) error {
 	f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
@@ -630,7 +711,7 @@ func writeFile(root *os.Root, name string, data io.Reader) error {
 }
 
 func writeReports(root *os.Root, report Report) error {
-	f, err := root.OpenFile("report.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	f, err := root.OpenFile("summary.json", os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
@@ -641,9 +722,12 @@ func writeReports(root *os.Root, report Report) error {
 		return err
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "jsmap-crawler\nStarted: %s\nInput: %q\nAssets: %d\n", report.StartedAt.Format(time.RFC3339), report.Input, len(report.Files))
+	fmt.Fprintf(&text, "jsmap-pro\nStarted: %s\nInput: %q\nAssets: %d\n", report.StartedAt.Format(time.RFC3339), report.Input, len(report.Files))
 	for _, r := range report.Files {
 		fmt.Fprintf(&text, "\nURL: %q\nFile: %s\n", r.URL, r.File)
+		if r.AnalysisNote != "" {
+			fmt.Fprintf(&text, "Analysis: %q\n", r.AnalysisNote)
+		}
 		if r.Error != "" {
 			fmt.Fprintf(&text, "ERROR: %q\n", r.Error)
 		}
@@ -659,5 +743,5 @@ func writeReports(root *os.Root, report Report) error {
 			fmt.Fprintln(&text, "SourceMap: not detected")
 		}
 	}
-	return writeFile(root, "report.txt", strings.NewReader(text.String()))
+	return writeFile(root, "summary.txt", strings.NewReader(text.String()))
 }

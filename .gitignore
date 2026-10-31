@@ -1,4 +1,7 @@
+/jsmap-pro
 /jsmap-crawler
 /jsmap-output/
 /hasil/
 /hasil-list/
+/dist/
+*.test
