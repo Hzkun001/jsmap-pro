@@ -17,19 +17,20 @@ A Go CLI that streams frontend assets, reconstructs exposed source maps, and nor
 
 ## Quick Start
 
-Have Go installed? Start a scan with one command:
+Install the latest release once, then scan a website with a Nmap-style positional target:
 
 ```sh
-go run ./cmd/jsmap -u https://example.com -o results
+go install github.com/Hzkun001/jsmap-pro@latest
+jsmap-pro -o results https://example.com
 ```
 
 > [!TIP]
-> If you already built the binary: `./jsmap-pro -u https://example.com -o results`.
+> Prefer not to install it? From a checkout, run `go run . -o results https://example.com`. You can also use the explicit form `jsmap-pro -u https://example.com -o results`.
 
 Build a standalone binary:
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
+go build -ldflags="-s -w" -o jsmap-pro .
 ```
 
 Results are written to `results/`: downloaded JavaScript goes in `raw/`, recovered source maps go in `unpacked/`, and summaries are saved as `summary.json` and `summary.txt`.
@@ -46,9 +47,9 @@ Choose one input source per scan:
 | Local directory | `-d ./assets` | Analyze `.js` files on disk, including subdirectories. |
 
 ```sh
-go run ./cmd/jsmap -l urls.txt -c 20 -o results-urls
-go run ./cmd/jsmap -har capture.har -o results-har
-go run ./cmd/jsmap -d ./assets -o results-local
+jsmap-pro -l urls.txt -c 20 -o results-urls
+jsmap-pro -har capture.har -o results-har
+jsmap-pro -d ./assets -o results-local
 ```
 
 `urls.txt` contains one HTTP(S) URL per line. Blank lines and lines starting with `#` are ignored. The output directory must be new or empty so earlier results are preserved.
@@ -87,7 +88,7 @@ HAR and directory modes are offline: source maps are read only when present in t
 Requires Go **1.24 or later**. This minimum is needed for `os.Root`, which keeps source-map extraction within the output directory.
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
+go build -ldflags="-s -w" -o jsmap-pro .
 go test -race ./...
 go vet ./...
 ```

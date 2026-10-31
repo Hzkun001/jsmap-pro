@@ -1,4 +1,4 @@
-module jsmap-pro
+module github.com/Hzkun001/jsmap-pro
 
 go 1.24.0
 

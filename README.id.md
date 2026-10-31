@@ -17,19 +17,20 @@ CLI Go untuk memindai aset frontend secara streaming, merekonstruksi source map 
 
 ## Mulai Cepat
 
-Sudah memasang Go? Jalankan pemindaian dengan satu perintah:
+Pasang rilis terbaru sekali, lalu pindai website dengan target langsung seperti gaya Nmap:
 
 ```sh
-go run ./cmd/jsmap -u https://example.com -o hasil
+go install github.com/Hzkun001/jsmap-pro@latest
+jsmap-pro -o hasil https://example.com
 ```
 
 > [!TIP]
-> Jika binary sudah dibuat: `./jsmap-pro -u https://example.com -o hasil`.
+> Tidak ingin memasang? Dari salinan repo, jalankan `go run . -o hasil https://example.com`. Format eksplisit `jsmap-pro -u https://example.com -o hasil` juga tersedia.
 
 Buat binary mandiri:
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
+go build -ldflags="-s -w" -o jsmap-pro .
 ```
 
 Hasil disimpan di `hasil/`: JavaScript unduhan ada di `raw/`, source map yang dipulihkan ada di `unpacked/`, dan ringkasan tersedia di `summary.json` serta `summary.txt`.
@@ -46,9 +47,9 @@ Pilih satu sumber input untuk setiap pemindaian:
 | Direktori lokal | `-d ./assets` | Analisis file `.js` di disk, termasuk subdirektori. |
 
 ```sh
-go run ./cmd/jsmap -l urls.txt -c 20 -o hasil-url
-go run ./cmd/jsmap -har capture.har -o hasil-har
-go run ./cmd/jsmap -d ./assets -o hasil-lokal
+jsmap-pro -l urls.txt -c 20 -o hasil-url
+jsmap-pro -har capture.har -o hasil-har
+jsmap-pro -d ./assets -o hasil-lokal
 ```
 
 `urls.txt` berisi satu URL HTTP(S) per baris. Baris kosong dan komentar yang diawali `#` diabaikan. Direktori output harus baru atau kosong agar hasil sebelumnya tetap tersimpan.
@@ -87,7 +88,7 @@ Mode HAR dan direktori berjalan offline: source map hanya dibaca jika tersedia d
 Memerlukan Go **1.24 atau lebih baru**. Batas minimum ini diperlukan oleh `os.Root` untuk menjaga ekstraksi source map tetap di dalam direktori output.
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
+go build -ldflags="-s -w" -o jsmap-pro .
 go test -race ./...
 go vet ./...
 ```

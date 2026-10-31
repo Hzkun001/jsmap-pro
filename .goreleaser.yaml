@@ -2,7 +2,7 @@ version: 2
 project_name: jsmap-pro
 builds:
   - id: jsmap-pro
-    main: ./cmd/jsmap
+    main: .
     binary: jsmap-pro
     env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]

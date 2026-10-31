@@ -100,9 +100,12 @@ func main() {
 	flag.IntVar(&c.Concurrency, "c", 10, "Number of concurrent workers")
 	flag.DurationVar(&c.Timeout, "timeout", 30*time.Second, "Timeout per HTTP request, including body download")
 	flag.Parse()
-	if flag.NArg() != 0 {
-		fmt.Fprintln(os.Stderr, "error: unexpected positional arguments")
+	if flag.NArg() > 1 || (flag.NArg() == 1 && c.URL != "") {
+		fmt.Fprintln(os.Stderr, "usage: jsmap-pro [options] [website-url]")
 		os.Exit(2)
+	}
+	if flag.NArg() == 1 {
+		c.URL = flag.Arg(0)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
