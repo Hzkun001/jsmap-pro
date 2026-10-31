@@ -210,10 +210,12 @@ func run(ctx context.Context, c config, output io.Writer) error {
 		}
 	}()
 	go func() { workers.Wait(); close(results) }()
-	failures, findings := 0, 0
+	failures, findings, completed := 0, 0, 0
 	for r := range results {
 		report.Files = append(report.Files, r)
 		findings += len(r.Findings)
+		completed++
+		log("36", "[progress] %d/%d assets complete", completed, len(urls))
 		if r.Error != "" || (r.SourceMap != nil && r.SourceMap.Status != fullyReconstructed) {
 			failures++
 		}
