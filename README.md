@@ -1,100 +1,105 @@
+<div align="center">
+
 # jsmap-pro
 
-CLI Go untuk menemukan aset JavaScript dari halaman utama, mengunduhnya secara streaming, mencari pola kriptografi/signature, serta merekonstruksi sumber dari source map publik.
+**Temukan JavaScript. Buka source map. Petakan pola sensitif.**
 
-## Build dan penggunaan
+CLI Go untuk memindai aset frontend secara streaming, merekonstruksi source map, dan menormalkan string JavaScript statis.
 
-Memerlukan Go 1.24 atau lebih baru saat build (API `os.Root` menjaga ekstraksi tetap di bawah direktori output). Parser DOM menggunakan `golang.org/x/net/html` dan parser JS menggunakan `github.com/tdewolff/parse/v2/js`; hasil build adalah satu binary tanpa runtime Go atau browser tambahan. Go 1.21 belum didukung; minimum ini akan diturunkan setelah isolasi file aman kompatibel Go 1.21 tersedia.
+[![CI](https://github.com/Hzkun001/jsmap-pro/actions/workflows/ci.yml/badge.svg)](https://github.com/Hzkun001/jsmap-pro/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Hzkun001/jsmap-pro)](https://github.com/Hzkun001/jsmap-pro/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Go 1.24+](https://img.shields.io/badge/Go-1.24%2B-00ADD8?logo=go)](go.mod)
 
-```sh
-go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap && ./jsmap-pro -u https://example.com -c 10 -o hasil
-```
+</div>
 
-Input daftar URL JS langsung:
+## Quick Start
 
-```sh
-./jsmap-pro -l urls.txt -c 20 -o hasil-list -timeout 60s
-```
-
-`urls.txt` berisi satu URL HTTP(S) absolut per baris. Baris kosong dan komentar yang diawali `#` diabaikan. URL dideduplikasi; fragment dihapus dan query string dipertahankan.
-
-| Flag | Default | Arti |
-| --- | --- | --- |
-| `-u` | — | URL website |
-| `-l` | — | File daftar URL JavaScript langsung |
-| `-har` | — | File HAR offline |
-| `-d` | — | Direktori JavaScript offline |
-| `-c` | `10` | Jumlah worker untuk unduh, analisis, dan source map |
-| `-o` | `jsmap-output` | Direktori baru atau kosong; isi yang sudah ada tidak ditimpa |
-| `-timeout` | `30s` | Timeout setiap request, termasuk pembacaan body |
-
-## Hasil
-
-```text
-hasil/
-  raw/
-    <hash-url>-app.js
-    <hash-url>-app.js.map
-  unpacked/
-    <hash-url>-app/
-      src/...
-  summary.json
-  summary.txt
-```
-
-- Penemuan memakai DOM `<script src>`, termasuk URL aset tanpa ekstensi `.js`, serta referensi literal `.js` pada inline script. Resolusi mengikuti URL halaman sesudah redirect dan `<base href>` jika ada. URL CDN juga diunduh.
-- `io.TeeReader` menyimpan byte JS apa adanya sementara `bufio.Scanner` memindai potongan 64 KiB dengan overlap. Satu baris minified besar tidak dimuat sekaligus. Nomor baris mengikuti LF/CRLF; setiap kategori dicatat sekali per baris, dengan cuplikan di sekitar kecocokan pertama.
-- Kategori: WebCrypto (`encrypt`, `decrypt`, `sign`, `verify`, `importKey`), Third-party Crypto (`CryptoJS`, `forge.cipher`, `JSEncrypt`, `U2FsdGVkX1`), Custom Header / Signature (`X-Signature`, `X-Sign`, `X-Timestamp`, `X-Request-Id`), Base64 Helper (`atob`, `btoa`).
-- Anotasi `//# sourceMappingURL=...` atau `/*# sourceMappingURL=... */` pada baris terakhir yang tidak kosong diresolusikan terhadap URL JS sesudah redirect. Map diunduh hanya setelah HEAD mengembalikan HTTP 200, lalu GET juga wajib HTTP 200.
-- Source map v3 dengan `sources`, `sourceRoot`, dan `sourcesContent` diekstrak; isi sumber kosong tetap menjadi file kosong. Prefix seperti `webpack:///./src/` dinormalisasi menjadi `src/`. Setiap bundle mendapat direktori sendiri, dengan proteksi traversal dan symlink melalui `os.Root`. Path yang keluar dari direktori, drive Windows, serta benturan nama file ditolak dan dicatat.
-- **Fully Reconstructed via SourceMap** berarti semua `sourcesContent` berhasil ditulis. Nilai `null`/konten yang tidak tersedia menghasilkan status parsial; tool tidak mengarang isi sumber atau mengambilnya dari URL sumber lain. Map invalid dan kegagalan HTTP ditulis sebagai error.
-- Progres dan temuan memakai ANSI color di STDOUT. Cuplikan dan input eksternal di-escape agar kontrol terminal dari aset tidak dijalankan. Laporan teks tidak mengandung ANSI.
-- Exit `0`: seluruh aset selesai, tanpa map bermasalah; ketiadaan anotasi map bukan error. Exit `1`: input/IO/network gagal atau ada rekonstruksi parsial. Error per aset tidak menghentikan aset lain; laporan tetap ditulis. Exit `2`: kesalahan parsing flag. Ctrl-C membatalkan request dan menyimpan hasil/error aset yang telah masuk antrean.
-
-## Batas cakupan
-
-Crawling bersifat statis dan hanya membaca halaman utama. Tidak ada eksekusi browser, navigasi link halaman lain, pembacaan import rekursif, atau evaluasi rumus pembentuk chunk webpack. Referensi literal bisa menghasilkan false positive. Regex menunjukkan lokasi pola, bukan bukti kerentanan, atau pemetaan nama fungsi asli dari VLQ `mappings`.
-
-Map inline `data:` dan indexed map `sections` belum didukung. Server yang menolak HEAD dianggap tidak tersedia walaupun GET mungkin berhasil. Anotasi map diperiksa pada bagian akhir file (maksimal 8 KiB, mengabaikan baris kosong di akhir), termasuk komentar blok beberapa baris.
-
-Batas per respons: HTML 16 MiB, JS 512 MiB, map 64 MiB (ukuran sesudah dekompresi HTTP). HTML diparse menjadi DOM dan JSON source map didekode di memori; konsumsi memori map meningkat mengikuti concurrency. Temuan disimpan untuk laporan, sedangkan byte JS tetap dialirkan ke disk. Batas ini tidak membatasi total ukuran seluruh unduhan.
-
-## Verifikasi lokal
+Sudah punya Go? Jalankan pemindaian pertama dengan satu perintah:
 
 ```sh
+go run ./cmd/jsmap -u https://example.com -o hasil
+```
+
+> [!TIP]
+> Punya binary? Cukup jalankan `./jsmap-pro -u https://example.com -o hasil`.
+
+Build binary mandiri:
+
+```sh
+go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
+```
+
+Hasil tersimpan di `hasil/`: file JavaScript mentah ada di `raw/`, source map yang terbuka direkonstruksi di `unpacked/`, dan ringkasan ada di `summary.json` serta `summary.txt`.
+
+## Mode input
+
+Pilih satu sumber input untuk setiap pemindaian:
+
+| Mode | Contoh | Kapan digunakan |
+|:--|:--|:--|
+| Website | `-u https://example.com` | Temukan aset dari tag `<script>` dan referensi `.js` statis di inline script. |
+| Daftar URL | `-l urls.txt` | Pindai URL JavaScript yang sudah dikumpulkan sebelumnya. |
+| HAR offline | `-har capture.har` | Analisis respons JavaScript dari HTTP Archive tanpa menghubungi server. |
+| Direktori lokal | `-d ./assets` | Analisis file `.js` di disk, termasuk subdirektori. |
+
+```sh
+./jsmap-pro -l urls.txt -c 20 -o hasil-url
+./jsmap-pro -har capture.har -o hasil-har
+./jsmap-pro -d ./assets -o hasil-lokal
+```
+
+`urls.txt` berisi satu URL HTTP(S) per baris. Baris kosong dan komentar `#` dilewati. Output harus berupa direktori baru atau direktori kosong supaya hasil sebelumnya tidak tertimpa.
+
+## Yang dianalisis
+
+| Kategori | Pola utama |
+|:--|:--|
+| WebCrypto | `crypto.subtle.encrypt/decrypt/sign/verify/importKey` |
+| Crypto pihak ketiga | `CryptoJS`, `forge.cipher`, `JSEncrypt`, `U2FsdGVkX1` |
+| Header signature | `X-Signature`, `X-Sign`, `X-Timestamp`, `X-Request-Id` |
+| Base64 | `atob()`, `btoa()` |
+
+Setiap temuan mencatat file, nomor baris, kategori, dan cuplikan. File mentah dianalisis sambil dialirkan ke disk; inliner AST juga memindai hasil normalisasi di `analyzed/` bila menemukan pola getter array string yang aman dikenali.
+
+## Source map
+
+Saat JavaScript berakhir dengan `//# sourceMappingURL=...`, jsmap-pro memeriksa map dan merekonstruksi `sourcesContent` ke `unpacked/`. Status **Fully Reconstructed via SourceMap** hanya diberikan jika seluruh sumber berhasil ditulis. Sumber yang tidak disertakan atau path yang tidak aman ditandai di laporan.
+
+Mode HAR dan direktori bekerja offline: source map hanya dimuat jika tersedia di HAR atau di dalam direktori input.
+
+## Opsi CLI
+
+| Opsi | Default | Keterangan |
+|:--|:--|:--|
+| `-u` | — | URL halaman website |
+| `-l` | — | File daftar URL JavaScript |
+| `-har` | — | File HTTP Archive untuk analisis offline |
+| `-d` | — | Direktori JavaScript lokal |
+| `-c` | `10` | Jumlah worker HTTP |
+| `-o` | `jsmap-output` | Direktori hasil yang baru atau kosong |
+| `-timeout` | `30s` | Timeout tiap request HTTP |
+
+## Build dan kontribusi
+
+Memerlukan Go **1.24 atau lebih baru**. Batas ini diperlukan oleh API `os.Root` yang menjaga ekstraksi source map tetap di dalam direktori output.
+
+```sh
+go build -ldflags="-s -w" -o jsmap-pro ./cmd/jsmap
 go test -race ./...
 go vet ./...
 ```
 
-Tes memakai server HTTP lokal untuk crawling, redirect, `<base href>`, deduplikasi, worker pool, rekonstruksi lengkap/parsial, HEAD gagal, JSON invalid, timeout, unduhan terputus, baris minified >10 MiB, pola lintas potongan, serta proteksi traversal dan symlink. Tidak membutuhkan target internet.
+Kontribusi, laporan bug, dan saran fitur dipersilakan. Baca [CONTRIBUTING.md](CONTRIBUTING.md), [Code of Conduct](CODE_OF_CONDUCT.md), dan [Security Policy](SECURITY.md).
 
-Referensi: [parser HTML resmi Go](https://pkg.go.dev/golang.org/x/net/html), [format source map ECMA-426](https://tc39.es/ecma426/).
+## Batasan
 
-## Input offline dan inliner AST
+- Crawling website bersifat statis dan hanya membaca halaman utama; tool tidak menjalankan browser atau JavaScript.
+- Pemetaan chunk yang dibentuk saat runtime, source map inline `data:`, dan indexed map `sections` belum didukung.
+- Inlining dibatasi pada deklarasi array string statis di awal file dengan getter top-level sederhana. Hasilnya membantu pemindaian, bukan bukti perilaku runtime.
+- Batas respons: HTML 16 MiB, JavaScript 512 MiB, source map 64 MiB, dan AST 25 MiB. Baris minified panjang tetap dipindai bertahap.
+- Jeda request acak 150–300 ms dan header browser mengurangi laju request, tetapi tidak menjamin server menerima pemindaian.
 
-Empat mode input `-u`, `-l`, `-har`, dan `-d` saling eksklusif:
+## Lisensi
 
-```sh
-./jsmap-pro -har capture.har -o hasil-har
-./jsmap-pro -d ./assets -o hasil-local
-```
-
-HAR dipilih berdasarkan MIME yang mengandung `javascript` atau path URL `.js` (query string diperbolehkan). Isi `response.content.text`, termasuk encoding `base64`, disimpan ke `raw/`. Body yang tidak disertakan di HAR dilaporkan sebagai error. Duplikat URL memakai body pertama yang tersedia. Ukuran file HAR dibatasi 512 MiB dan JSON dimuat di memori.
-
-Mode direktori membaca `.js` secara rekursif dan melewati symlink. Kedua mode offline tidak mengirim request HTTP: source map hanya dicari di respons HAR atau di dalam direktori input. Map yang tidak tersedia dilaporkan sebagai unavailable; map lokal yang keluar dari direktori input ditolak.
-
-HTTP kini memakai User-Agent desktop, `Sec-Fetch-Dest: script`, `Sec-Fetch-Mode: no-cors`, dan `Accept-Language`. Setiap pemanggilan request diberi `time.Sleep` acak 150–300 ms, termasuk HEAD/GET map. Ini jeda per worker, bukan batas request global; redirect otomatis HTTP tidak memiliki jeda terpisah. Header dan jitter tidak menjamin server tidak memblokir request.
-
-Scanner memakai buffer awal 1 MiB dan maksimum 25 MiB, dengan splitter 64 KiB dan overlap yang sudah ada. Baris minified di atas 25 MiB tetap bisa dipindai tanpa menjadi satu token besar.
-
-`inliner.go` memakai parser `github.com/tdewolff/parse/v2/js` untuk mengganti pemanggilan getter statis, misalnya:
-
-```js
-const strings = ["X-Signature"];
-function get(i) { return strings[i]; }
-send(get(0)); // hasil analisis: send("X-Signature");
-```
-
-AST diserialisasi ke `analyzed/<nama-aset>.js`, kemudian dipindai lagi. Temuan dari hasil transformasi mengacu pada file dan nomor baris `analyzed/`; temuan asli tetap mengacu pada `raw/`. `analysis_note` di JSON/TXT mencatat jumlah penggantian atau alasan tahap AST dilewati.
-
-Inliner dibatasi pada array string dalam deklarasi statis di awal file dan function getter top-level satu parameter yang langsung mengembalikan `array[index]`. Akses binding mengikuti scope parser. Indeks dinamis, spread, getter async/generator, alias, mutasi, serta penggunaan `eval`, `Function`, `with`, `this`, atau objek global umum dilewati. Ini bantuan analisis statis pada satu chunk, bukan pembuktian perilaku lintas-script atau deobfuscator umum. File yang gagal diparse atau lebih besar dari 25 MiB tetap mendapat scan raw; batas AST dicatat. JavaScript tidak dieksekusi.
+MIT. Lihat [LICENSE](LICENSE).
