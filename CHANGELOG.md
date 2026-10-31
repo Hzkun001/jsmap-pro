@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.1.1
 
 - Show completed asset progress during scans.
 - Add HTTP, URL-list, HAR, and local-directory inputs.
