@@ -46,9 +46,9 @@ Choose one input source per scan:
 | Local directory | `-d ./assets` | Analyze `.js` files on disk, including subdirectories. |
 
 ```sh
-./jsmap-pro -l urls.txt -c 20 -o results-urls
-./jsmap-pro -har capture.har -o results-har
-./jsmap-pro -d ./assets -o results-local
+go run ./cmd/jsmap -l urls.txt -c 20 -o results-urls
+go run ./cmd/jsmap -har capture.har -o results-har
+go run ./cmd/jsmap -d ./assets -o results-local
 ```
 
 `urls.txt` contains one HTTP(S) URL per line. Blank lines and lines starting with `#` are ignored. The output directory must be new or empty so earlier results are preserved.

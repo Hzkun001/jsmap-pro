@@ -46,9 +46,9 @@ Pilih satu sumber input untuk setiap pemindaian:
 | Direktori lokal | `-d ./assets` | Analisis file `.js` di disk, termasuk subdirektori. |
 
 ```sh
-./jsmap-pro -l urls.txt -c 20 -o hasil-url
-./jsmap-pro -har capture.har -o hasil-har
-./jsmap-pro -d ./assets -o hasil-lokal
+go run ./cmd/jsmap -l urls.txt -c 20 -o hasil-url
+go run ./cmd/jsmap -har capture.har -o hasil-har
+go run ./cmd/jsmap -d ./assets -o hasil-lokal
 ```
 
 `urls.txt` berisi satu URL HTTP(S) per baris. Baris kosong dan komentar yang diawali `#` diabaikan. Direktori output harus baru atau kosong agar hasil sebelumnya tetap tersimpan.
