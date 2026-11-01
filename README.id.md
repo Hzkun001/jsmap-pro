@@ -26,9 +26,7 @@ Memerlukan **Go 1.24+** dan Git. Jika repo sudah di-clone, buka direktorinya lal
 ```sh
 git clone https://github.com/Hzkun001/jsmap-pro.git
 cd jsmap-pro
-mkdir -p "$HOME/.local/bin"
-go build -ldflags="-s -w" -o "$HOME/.local/bin/jsmap" .
-export PATH="$HOME/.local/bin:$PATH"
+./install.sh
 ```
 
 ### Jalankan
@@ -49,18 +47,16 @@ jsmap -h
 Opsi boleh sebelum atau sesudah target. Folder output harus baru atau kosong.
 
 > [!TIP]
-> Agar `jsmap` tetap tersedia di terminal baru, tambahkan `export PATH="$HOME/.local/bin:$PATH"` ke `~/.bashrc` atau `~/.zshrc` sekali saja.
+> `./install.sh` memasang binary ke `/usr/local/bin`, yang harus sudah ada di PATH. Script meminta `sudo` hanya bila diperlukan. Setelah selesai, `jsmap` langsung tersedia dari direktori mana pun dan di terminal baru tanpa mengubah konfigurasi shell.
 
 ### Tanpa Go — binary release
 
-Unduh lalu ekstrak arsip sesuai OS/CPU dari [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Mulai **v0.1.4**, arsip berisi `jsmap` (Windows: `jsmap.exe`); rilis sebelumnya berisi `jsmap-pro`.
+Unduh lalu ekstrak arsip sesuai OS/CPU dari [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Mulai **v0.1.4**, arsip berisi `jsmap` (Windows: `jsmap.exe`). Mulai **v0.1.5**, arsip juga menyertakan `install.sh` untuk memasang binary tanpa Go. Untuk arsip lama, gunakan `sudo install -m 755 jsmap /usr/local/bin/jsmap`.
 
 Dari direktori hasil ekstraksi di Linux/macOS:
 
 ```sh
-mkdir -p "$HOME/.local/bin"
-install -m 755 jsmap "$HOME/.local/bin/jsmap"
-export PATH="$HOME/.local/bin:$PATH"
+./install.sh
 jsmap example.com
 ```
 

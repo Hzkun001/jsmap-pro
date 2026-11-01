@@ -13,6 +13,6 @@ archives:
     format_overrides:
       - goos: windows
         formats: [zip]
-    files: [README.md, README.id.md, LICENSE, CHANGELOG.md]
+    files: [README.md, README.id.md, LICENSE, CHANGELOG.md, install.sh]
 checksum:
   name_template: checksums.txt

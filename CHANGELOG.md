@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.5
+
+- Add a one-command Linux/macOS installer for source checkouts and release binaries.
+- Install into an existing PATH directory without editing shell startup files.
+
 ## v0.1.4
 
 - Ship the executable as `jsmap` and align help, installation, and both README editions.

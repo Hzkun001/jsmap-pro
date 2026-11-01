@@ -26,9 +26,7 @@ Requires **Go 1.24+** and Git. If you already cloned the repository, start from 
 ```sh
 git clone https://github.com/Hzkun001/jsmap-pro.git
 cd jsmap-pro
-mkdir -p "$HOME/.local/bin"
-go build -ldflags="-s -w" -o "$HOME/.local/bin/jsmap" .
-export PATH="$HOME/.local/bin:$PATH"
+./install.sh
 ```
 
 ### Run
@@ -49,18 +47,16 @@ jsmap -h
 Options work before or after the target. Output directories must be new or empty.
 
 > [!TIP]
-> To keep `jsmap` available in new terminals, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.bashrc` or `~/.zshrc` once.
+> `./install.sh` installs to `/usr/local/bin`, which must already be in PATH. It requests `sudo` only when needed. After installation, `jsmap` works immediately in any directory and in new terminals; no shell configuration changes are required.
 
 ### Without Go — release binary
 
-Download and extract the archive for your OS/CPU from [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Releases starting at **v0.1.4** contain `jsmap` (Windows: `jsmap.exe`); older releases contain `jsmap-pro`.
+Download and extract the archive for your OS/CPU from [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Releases starting at **v0.1.4** contain `jsmap` (Windows: `jsmap.exe`). Starting at **v0.1.5**, archives also include `install.sh`; it installs the bundled binary without Go. Older archives can be installed with `sudo install -m 755 jsmap /usr/local/bin/jsmap`.
 
 From the extracted directory on Linux/macOS:
 
 ```sh
-mkdir -p "$HOME/.local/bin"
-install -m 755 jsmap "$HOME/.local/bin/jsmap"
-export PATH="$HOME/.local/bin:$PATH"
+./install.sh
 jsmap example.com
 ```
 
