@@ -43,7 +43,7 @@ func TestCLIHelp(t *testing.T) {
 	for _, args := range [][]string{nil, {"-h"}, {"--help"}} {
 		var output bytes.Buffer
 		_, err := parseCLI(args, &output)
-		if !errors.Is(err, flag.ErrHelp) || !strings.Contains(output.String(), "jsmap-pro example.com") {
+		if !errors.Is(err, flag.ErrHelp) || !strings.Contains(output.String(), "jsmap example.com") {
 			t.Fatalf("missing useful help for %v: %v %s", args, err, output.String())
 		}
 	}

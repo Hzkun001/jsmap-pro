@@ -719,7 +719,7 @@ func writeReports(root *os.Root, report Report) error {
 		return err
 	}
 	var text strings.Builder
-	fmt.Fprintf(&text, "jsmap-pro\nStarted: %s\nInput: %q\nAssets: %d\n", report.StartedAt.Format(time.RFC3339), report.Input, len(report.Files))
+	fmt.Fprintf(&text, "jsmap\nStarted: %s\nInput: %q\nAssets: %d\n", report.StartedAt.Format(time.RFC3339), report.Input, len(report.Files))
 	for _, r := range report.Files {
 		fmt.Fprintf(&text, "\nURL: %q\nFile: %s\n", r.URL, r.File)
 		if r.AnalysisNote != "" {

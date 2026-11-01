@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.4
+
+- Ship the executable as `jsmap` and align help, installation, and both README editions.
+- Include the Indonesian README in release archives.
+
 ## v0.1.3
 
 - Accept hostnames with HTTPS by default and options before or after a website target.

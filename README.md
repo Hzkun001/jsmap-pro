@@ -17,67 +17,67 @@ A Go CLI that streams frontend assets, reconstructs exposed source maps, and nor
 
 ## Quick Start
 
-Requires **Go 1.24+**. Install or update once:
+The command is **`jsmap`**. The repository is named `jsmap-pro`.
 
-```sh
-go install github.com/Hzkun001/jsmap-pro@v0.1.3
-```
+### Install once from source — Linux / macOS
 
-Then scan your website:
-
-```sh
-jsmap-pro example.com
-```
-
-Replace `example.com` with your website containing JavaScript assets. A hostname uses HTTPS automatically; use `http://localhost:8080` explicitly for a local HTTP server.
-
-Reports go to `jsmap-output/summary.json` and `jsmap-output/summary.txt`. To use another output directory or run another scan:
-
-```sh
-jsmap-pro example.com -o results
-```
-
-Options work before or after the target. The output directory must be new or empty. Run `jsmap-pro -h` (or just `jsmap-pro`) for help and examples.
-
-> [!TIP]
-> **Command not found after `go install`?** Go normally installs binaries in `$(go env GOPATH)/bin`. For the current shell, run `export PATH="$(go env GOPATH)/bin:$PATH"`. Add that line to `~/.bashrc` or `~/.zshrc` to keep it. If you configured `GOBIN`, add that directory instead.
-
-### Without Go
-
-Download the archive for your OS and CPU from [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest), extract it, and open a terminal in the extracted directory:
-
-```sh
-./jsmap-pro example.com
-```
-
-On Windows, use `.\jsmap-pro.exe example.com` in PowerShell. The bare command `jsmap-pro` works once the binary's directory is on your PATH.
-
-### From source
+Requires **Go 1.24+** and Git. If you already cloned the repository, start from its directory and skip the first two lines:
 
 ```sh
 git clone https://github.com/Hzkun001/jsmap-pro.git
 cd jsmap-pro
+mkdir -p "$HOME/.local/bin"
+go build -ldflags="-s -w" -o "$HOME/.local/bin/jsmap" .
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Run
+
+```sh
+jsmap example.com
+```
+
+Replace `example.com` with your website containing JavaScript assets. HTTPS is used automatically. For HTTP, supply `http://` explicitly. Reports go to `jsmap-output/`.
+
+```sh
+jsmap example.com -o results
+jsmap -har capture.har -o results-har
+jsmap -d ./assets -o results-local
+jsmap -h
+```
+
+Options work before or after the target. Output directories must be new or empty.
+
+> [!TIP]
+> To keep `jsmap` available in new terminals, add `export PATH="$HOME/.local/bin:$PATH"` to `~/.bashrc` or `~/.zshrc` once.
+
+### Without Go — release binary
+
+Download and extract the archive for your OS/CPU from [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Releases starting at **v0.1.4** contain `jsmap` (Windows: `jsmap.exe`); older releases contain `jsmap-pro`.
+
+From the extracted directory on Linux/macOS:
+
+```sh
+mkdir -p "$HOME/.local/bin"
+install -m 755 jsmap "$HOME/.local/bin/jsmap"
+export PATH="$HOME/.local/bin:$PATH"
+jsmap example.com
+```
+
+On Windows, run `.\jsmap.exe example.com` in PowerShell from the extracted directory, or add its directory to PATH to use `jsmap`.
+
+### Run directly from a checkout
+
+```sh
 go run . example.com
 ```
 
-To build a local binary for repeated use:
+To build a binary in the current directory:
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro .
-./jsmap-pro example.com
+go build -o jsmap .
+./jsmap example.com
 ```
-
-### Try it offline
-
-From a checkout, this example creates a small JavaScript fixture and scans it without network access:
-
-```sh
-mkdir -p demo
-printf 'crypto.subtle.encrypt(key, data);\n' > demo/app.js
-go run . -d demo -o results-demo
-```
-
-Use a new `-o` directory when repeating the example. Raw assets are saved in `raw/`, recovered sources in `unpacked/`, and normalized code in `analyzed/` when applicable.
 
 ## Input modes
 
@@ -91,9 +91,9 @@ Choose one input source per scan:
 | Local directory | `-d ./assets` | Analyze `.js` files on disk, including subdirectories. |
 
 ```sh
-jsmap-pro -l urls.txt -c 20 -o results-urls
-jsmap-pro -har capture.har -o results-har
-jsmap-pro -d ./assets -o results-local
+jsmap -l urls.txt -c 20 -o results-urls
+jsmap -har capture.har -o results-har
+jsmap -d ./assets -o results-local
 ```
 
 `urls.txt` contains one HTTP(S) URL per line. Blank lines and lines starting with `#` are ignored. The output directory must be new or empty so earlier results are preserved.
@@ -111,7 +111,7 @@ Each finding includes a file, line number, category, and code snippet. Raw JavaS
 
 ## Source maps
 
-When JavaScript ends with `//# sourceMappingURL=...`, jsmap-pro checks the map and reconstructs its `sourcesContent` under `unpacked/`. The status **Fully Reconstructed via SourceMap** is used only when every source was written successfully. Missing source content and unsafe paths are reported.
+When JavaScript ends with `//# sourceMappingURL=...`, jsmap checks the map and reconstructs its `sourcesContent` under `unpacked/`. The status **Fully Reconstructed via SourceMap** is used only when every source was written successfully. Missing source content and unsafe paths are reported.
 
 HAR and directory modes are offline: source maps are read only when present in the HAR or input directory.
 
@@ -132,7 +132,7 @@ HAR and directory modes are offline: source maps are read only when present in t
 Requires Go **1.24 or later**. This minimum is needed for `os.Root`, which keeps source-map extraction within the output directory.
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro .
+go build -ldflags="-s -w" -o jsmap .
 go test -race ./...
 go vet ./...
 ```

@@ -17,67 +17,67 @@ CLI Go untuk memindai aset frontend secara streaming, merekonstruksi source map 
 
 ## Mulai Cepat
 
-Memerlukan **Go 1.24+**. Pasang atau perbarui sekali:
+Nama perintahnya **`jsmap`**. Nama repository tetap `jsmap-pro`.
 
-```sh
-go install github.com/Hzkun001/jsmap-pro@v0.1.3
-```
+### Pasang sekali dari source — Linux / macOS
 
-Lalu pindai website Anda:
-
-```sh
-jsmap-pro example.com
-```
-
-Ganti `example.com` dengan website Anda yang memuat aset JavaScript. Hostname otomatis menggunakan HTTPS; untuk server HTTP lokal, tulis lengkap `http://localhost:8080`.
-
-Laporan tersimpan di `jsmap-output/summary.json` dan `jsmap-output/summary.txt`. Untuk memilih folder lain atau menjalankan pemindaian berikutnya:
-
-```sh
-jsmap-pro example.com -o hasil
-```
-
-Opsi boleh diletakkan sebelum atau sesudah target. Folder output harus baru atau kosong. Jalankan `jsmap-pro -h` (atau cukup `jsmap-pro`) untuk melihat bantuan dan contoh.
-
-> [!TIP]
-> **Command not found setelah `go install`?** Go biasanya menyimpan binary di `$(go env GOPATH)/bin`. Untuk shell saat ini, jalankan `export PATH="$(go env GOPATH)/bin:$PATH"`. Tambahkan baris itu ke `~/.bashrc` atau `~/.zshrc` agar tetap berlaku. Jika Anda mengatur `GOBIN`, tambahkan direktori tersebut.
-
-### Tanpa Go
-
-Unduh arsip sesuai OS dan CPU dari [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest), ekstrak, lalu buka terminal di direktori hasil ekstraksi:
-
-```sh
-./jsmap-pro example.com
-```
-
-Di Windows, gunakan `.\jsmap-pro.exe example.com` melalui PowerShell. Perintah langsung `jsmap-pro` dapat dipakai setelah direktori binary masuk ke PATH.
-
-### Dari source
+Memerlukan **Go 1.24+** dan Git. Jika repo sudah di-clone, buka direktorinya lalu lewati dua baris pertama:
 
 ```sh
 git clone https://github.com/Hzkun001/jsmap-pro.git
 cd jsmap-pro
+mkdir -p "$HOME/.local/bin"
+go build -ldflags="-s -w" -o "$HOME/.local/bin/jsmap" .
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Jalankan
+
+```sh
+jsmap example.com
+```
+
+Ganti `example.com` dengan website Anda yang memuat aset JavaScript. HTTPS dipilih otomatis. Untuk HTTP, tulis `http://` secara eksplisit. Laporan tersimpan di `jsmap-output/`.
+
+```sh
+jsmap example.com -o hasil
+jsmap -har capture.har -o hasil-har
+jsmap -d ./assets -o hasil-lokal
+jsmap -h
+```
+
+Opsi boleh sebelum atau sesudah target. Folder output harus baru atau kosong.
+
+> [!TIP]
+> Agar `jsmap` tetap tersedia di terminal baru, tambahkan `export PATH="$HOME/.local/bin:$PATH"` ke `~/.bashrc` atau `~/.zshrc` sekali saja.
+
+### Tanpa Go — binary release
+
+Unduh lalu ekstrak arsip sesuai OS/CPU dari [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest). Mulai **v0.1.4**, arsip berisi `jsmap` (Windows: `jsmap.exe`); rilis sebelumnya berisi `jsmap-pro`.
+
+Dari direktori hasil ekstraksi di Linux/macOS:
+
+```sh
+mkdir -p "$HOME/.local/bin"
+install -m 755 jsmap "$HOME/.local/bin/jsmap"
+export PATH="$HOME/.local/bin:$PATH"
+jsmap example.com
+```
+
+Di Windows, jalankan `.\jsmap.exe example.com` melalui PowerShell dari direktori hasil ekstraksi, atau tambahkan direktorinya ke PATH untuk memakai `jsmap` langsung.
+
+### Jalankan langsung dari salinan repo
+
+```sh
 go run . example.com
 ```
 
-Untuk membuat binary lokal yang bisa dijalankan berulang kali:
+Untuk membuat binary di direktori saat ini:
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro .
-./jsmap-pro example.com
+go build -o jsmap .
+./jsmap example.com
 ```
-
-### Coba secara offline
-
-Dari salinan repo, contoh ini membuat file JavaScript kecil dan memindainya tanpa koneksi jaringan:
-
-```sh
-mkdir -p demo
-printf 'crypto.subtle.encrypt(key, data);\n' > demo/app.js
-go run . -d demo -o hasil-demo
-```
-
-Gunakan folder `-o` baru saat mengulang contoh. Aset mentah disimpan di `raw/`, sumber yang dipulihkan di `unpacked/`, dan kode hasil normalisasi di `analyzed/` jika tersedia.
 
 ## Mode input
 
@@ -91,9 +91,9 @@ Pilih satu sumber input untuk setiap pemindaian:
 | Direktori lokal | `-d ./assets` | Analisis file `.js` di disk, termasuk subdirektori. |
 
 ```sh
-jsmap-pro -l urls.txt -c 20 -o hasil-url
-jsmap-pro -har capture.har -o hasil-har
-jsmap-pro -d ./assets -o hasil-lokal
+jsmap -l urls.txt -c 20 -o hasil-url
+jsmap -har capture.har -o hasil-har
+jsmap -d ./assets -o hasil-lokal
 ```
 
 `urls.txt` berisi satu URL HTTP(S) per baris. Baris kosong dan komentar yang diawali `#` diabaikan. Direktori output harus baru atau kosong agar hasil sebelumnya tetap tersimpan.
@@ -111,7 +111,7 @@ Setiap temuan mencatat file, nomor baris, kategori, dan cuplikan kode. JavaScrip
 
 ## Source map
 
-Jika JavaScript diakhiri `//# sourceMappingURL=...`, jsmap-pro memeriksa map dan merekonstruksi `sourcesContent` ke `unpacked/`. Status **Fully Reconstructed via SourceMap** hanya dipakai jika semua sumber berhasil ditulis. Konten sumber yang tidak tersedia dan path yang tidak aman akan dicatat.
+Jika JavaScript diakhiri `//# sourceMappingURL=...`, jsmap memeriksa map dan merekonstruksi `sourcesContent` ke `unpacked/`. Status **Fully Reconstructed via SourceMap** hanya dipakai jika semua sumber berhasil ditulis. Konten sumber yang tidak tersedia dan path yang tidak aman akan dicatat.
 
 Mode HAR dan direktori berjalan offline: source map hanya dibaca jika tersedia di HAR atau direktori input.
 
@@ -132,7 +132,7 @@ Mode HAR dan direktori berjalan offline: source map hanya dibaca jika tersedia d
 Memerlukan Go **1.24 atau lebih baru**. Batas minimum ini diperlukan oleh `os.Root` untuk menjaga ekstraksi source map tetap di dalam direktori output.
 
 ```sh
-go build -ldflags="-s -w" -o jsmap-pro .
+go build -ldflags="-s -w" -o jsmap .
 go test -race ./...
 go vet ./...
 ```

@@ -10,7 +10,7 @@ import (
 
 func parseCLI(args []string, output io.Writer) (config, error) {
 	var c config
-	fs := flag.NewFlagSet("jsmap-pro", flag.ContinueOnError)
+	fs := flag.NewFlagSet("jsmap", flag.ContinueOnError)
 	fs.SetOutput(output)
 	fs.StringVar(&c.URL, "u", "", "Website URL or hostname (also accepted as a positional target)")
 	fs.StringVar(&c.List, "l", "", "File containing JavaScript URLs")
@@ -20,9 +20,9 @@ func parseCLI(args []string, output io.Writer) (config, error) {
 	fs.IntVar(&c.Concurrency, "c", 10, "Number of concurrent workers")
 	fs.DurationVar(&c.Timeout, "timeout", 30*time.Second, "Timeout per HTTP request")
 	fs.Usage = func() {
-		fmt.Fprintln(output, "jsmap-pro — JavaScript asset and source map scanner")
-		fmt.Fprintln(output, "\nUsage: jsmap-pro [options] [website]")
-		fmt.Fprintln(output, "\nExamples:\n  jsmap-pro example.com\n  jsmap-pro example.com -o results\n  jsmap-pro -l urls.txt\n  jsmap-pro -har capture.har\n  jsmap-pro -d ./assets")
+		fmt.Fprintln(output, "jsmap — JavaScript asset and source map scanner")
+		fmt.Fprintln(output, "\nUsage: jsmap [options] [website]")
+		fmt.Fprintln(output, "\nExamples:\n  jsmap example.com\n  jsmap example.com -o results\n  jsmap -l urls.txt\n  jsmap -har capture.har\n  jsmap -d ./assets")
 		fmt.Fprintln(output, "\nOptions:")
 		fs.PrintDefaults()
 		fmt.Fprintln(output, "\nHostnames use HTTPS by default. Use http:// explicitly when needed.")
