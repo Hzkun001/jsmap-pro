@@ -20,7 +20,7 @@ A Go CLI that streams frontend assets, reconstructs exposed source maps, and nor
 Requires **Go 1.24+**. Install or update once:
 
 ```sh
-go install github.com/Hzkun001/jsmap-pro@latest
+go install github.com/Hzkun001/jsmap-pro@v0.1.3
 ```
 
 Then scan your website:

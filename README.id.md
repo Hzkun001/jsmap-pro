@@ -20,7 +20,7 @@ CLI Go untuk memindai aset frontend secara streaming, merekonstruksi source map 
 Memerlukan **Go 1.24+**. Pasang atau perbarui sekali:
 
 ```sh
-go install github.com/Hzkun001/jsmap-pro@latest
+go install github.com/Hzkun001/jsmap-pro@v0.1.3
 ```
 
 Lalu pindai website Anda:
