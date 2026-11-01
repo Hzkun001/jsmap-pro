@@ -91,21 +91,13 @@ var (
 )
 
 func main() {
-	var c config
-	flag.StringVar(&c.URL, "u", "", "Website URL to discover JavaScript assets")
-	flag.StringVar(&c.List, "l", "", "Text file containing direct JavaScript URLs (one per line)")
-	flag.StringVar(&c.HAR, "har", "", "Offline HTTP Archive file")
-	flag.StringVar(&c.Directory, "d", "", "Offline directory of JavaScript files")
-	flag.StringVar(&c.Output, "o", "jsmap-output", "New or empty output directory")
-	flag.IntVar(&c.Concurrency, "c", 10, "Number of concurrent workers")
-	flag.DurationVar(&c.Timeout, "timeout", 30*time.Second, "Timeout per HTTP request, including body download")
-	flag.Parse()
-	if flag.NArg() > 1 || (flag.NArg() == 1 && c.URL != "") {
-		fmt.Fprintln(os.Stderr, "usage: jsmap-pro [options] [website-url]")
-		os.Exit(2)
+	c, err := parseCLI(os.Args[1:], os.Stderr)
+	if errors.Is(err, flag.ErrHelp) {
+		return
 	}
-	if flag.NArg() == 1 {
-		c.URL = flag.Arg(0)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(2)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

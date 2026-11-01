@@ -17,23 +17,67 @@ CLI Go untuk memindai aset frontend secara streaming, merekonstruksi source map 
 
 ## Mulai Cepat
 
-Pasang rilis terbaru sekali, lalu pindai website dengan target langsung seperti gaya Nmap:
+Memerlukan **Go 1.24+**. Pasang atau perbarui sekali:
 
 ```sh
 go install github.com/Hzkun001/jsmap-pro@latest
-jsmap-pro -o hasil https://example.com
 ```
 
-> [!TIP]
-> Tidak ingin memasang? Dari salinan repo, jalankan `go run . -o hasil https://example.com`. Format eksplisit `jsmap-pro -u https://example.com -o hasil` juga tersedia.
+Lalu pindai website Anda:
 
-Buat binary mandiri:
+```sh
+jsmap-pro example.com
+```
+
+Ganti `example.com` dengan website Anda yang memuat aset JavaScript. Hostname otomatis menggunakan HTTPS; untuk server HTTP lokal, tulis lengkap `http://localhost:8080`.
+
+Laporan tersimpan di `jsmap-output/summary.json` dan `jsmap-output/summary.txt`. Untuk memilih folder lain atau menjalankan pemindaian berikutnya:
+
+```sh
+jsmap-pro example.com -o hasil
+```
+
+Opsi boleh diletakkan sebelum atau sesudah target. Folder output harus baru atau kosong. Jalankan `jsmap-pro -h` (atau cukup `jsmap-pro`) untuk melihat bantuan dan contoh.
+
+> [!TIP]
+> **Command not found setelah `go install`?** Go biasanya menyimpan binary di `$(go env GOPATH)/bin`. Untuk shell saat ini, jalankan `export PATH="$(go env GOPATH)/bin:$PATH"`. Tambahkan baris itu ke `~/.bashrc` atau `~/.zshrc` agar tetap berlaku. Jika Anda mengatur `GOBIN`, tambahkan direktori tersebut.
+
+### Tanpa Go
+
+Unduh arsip sesuai OS dan CPU dari [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest), ekstrak, lalu buka terminal di direktori hasil ekstraksi:
+
+```sh
+./jsmap-pro example.com
+```
+
+Di Windows, gunakan `.\jsmap-pro.exe example.com` melalui PowerShell. Perintah langsung `jsmap-pro` dapat dipakai setelah direktori binary masuk ke PATH.
+
+### Dari source
+
+```sh
+git clone https://github.com/Hzkun001/jsmap-pro.git
+cd jsmap-pro
+go run . example.com
+```
+
+Untuk membuat binary lokal yang bisa dijalankan berulang kali:
 
 ```sh
 go build -ldflags="-s -w" -o jsmap-pro .
+./jsmap-pro example.com
 ```
 
-Hasil disimpan di `hasil/`: JavaScript unduhan ada di `raw/`, source map yang dipulihkan ada di `unpacked/`, dan ringkasan tersedia di `summary.json` serta `summary.txt`.
+### Coba secara offline
+
+Dari salinan repo, contoh ini membuat file JavaScript kecil dan memindainya tanpa koneksi jaringan:
+
+```sh
+mkdir -p demo
+printf 'crypto.subtle.encrypt(key, data);\n' > demo/app.js
+go run . -d demo -o hasil-demo
+```
+
+Gunakan folder `-o` baru saat mengulang contoh. Aset mentah disimpan di `raw/`, sumber yang dipulihkan di `unpacked/`, dan kode hasil normalisasi di `analyzed/` jika tersedia.
 
 ## Mode input
 

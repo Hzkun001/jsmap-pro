@@ -17,23 +17,67 @@ A Go CLI that streams frontend assets, reconstructs exposed source maps, and nor
 
 ## Quick Start
 
-Install the latest release once, then scan a website with a Nmap-style positional target:
+Requires **Go 1.24+**. Install or update once:
 
 ```sh
 go install github.com/Hzkun001/jsmap-pro@latest
-jsmap-pro -o results https://example.com
 ```
 
-> [!TIP]
-> Prefer not to install it? From a checkout, run `go run . -o results https://example.com`. You can also use the explicit form `jsmap-pro -u https://example.com -o results`.
+Then scan your website:
 
-Build a standalone binary:
+```sh
+jsmap-pro example.com
+```
+
+Replace `example.com` with your website containing JavaScript assets. A hostname uses HTTPS automatically; use `http://localhost:8080` explicitly for a local HTTP server.
+
+Reports go to `jsmap-output/summary.json` and `jsmap-output/summary.txt`. To use another output directory or run another scan:
+
+```sh
+jsmap-pro example.com -o results
+```
+
+Options work before or after the target. The output directory must be new or empty. Run `jsmap-pro -h` (or just `jsmap-pro`) for help and examples.
+
+> [!TIP]
+> **Command not found after `go install`?** Go normally installs binaries in `$(go env GOPATH)/bin`. For the current shell, run `export PATH="$(go env GOPATH)/bin:$PATH"`. Add that line to `~/.bashrc` or `~/.zshrc` to keep it. If you configured `GOBIN`, add that directory instead.
+
+### Without Go
+
+Download the archive for your OS and CPU from [Releases](https://github.com/Hzkun001/jsmap-pro/releases/latest), extract it, and open a terminal in the extracted directory:
+
+```sh
+./jsmap-pro example.com
+```
+
+On Windows, use `.\jsmap-pro.exe example.com` in PowerShell. The bare command `jsmap-pro` works once the binary's directory is on your PATH.
+
+### From source
+
+```sh
+git clone https://github.com/Hzkun001/jsmap-pro.git
+cd jsmap-pro
+go run . example.com
+```
+
+To build a local binary for repeated use:
 
 ```sh
 go build -ldflags="-s -w" -o jsmap-pro .
+./jsmap-pro example.com
 ```
 
-Results are written to `results/`: downloaded JavaScript goes in `raw/`, recovered source maps go in `unpacked/`, and summaries are saved as `summary.json` and `summary.txt`.
+### Try it offline
+
+From a checkout, this example creates a small JavaScript fixture and scans it without network access:
+
+```sh
+mkdir -p demo
+printf 'crypto.subtle.encrypt(key, data);\n' > demo/app.js
+go run . -d demo -o results-demo
+```
+
+Use a new `-o` directory when repeating the example. Raw assets are saved in `raw/`, recovered sources in `unpacked/`, and normalized code in `analyzed/` when applicable.
 
 ## Input modes
 

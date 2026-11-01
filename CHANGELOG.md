@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.3
+
+- Accept hostnames with HTTPS by default and options before or after a website target.
+- Show useful help when launched without arguments.
+- Clarify installation, PATH setup, binary usage, and offline examples in both README editions.
+
 ## v0.1.2
 
 - Move the CLI entrypoint to the repository root and accept a positional website target.
